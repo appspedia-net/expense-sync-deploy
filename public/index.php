@@ -34,7 +34,7 @@ if (strpos($path, '/index.php') === 0) {
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 // --- Global guards ---------------------------------------------------------
-$isHealth = ($path === '/v1/health' || $path === '/' || $path === '');
+$isHealth = ($path === '/v1/health' || $path === '/' || $path === '' || ($path === '/v1/admin/migrate' && $method === 'GET'));
 if (!$isHealth) {
     Auth::requireAppKey();
     RateLimit::guard('ip:' . client_ip(), (int) config('rate_limits.per_ip_per_minute', 240), 60);
@@ -91,5 +91,6 @@ $r->post('/v1/ai/receipt', 'AiController@receipt');
 $r->post('/v1/ai/ask', 'AiController@ask');
 $r->get('/v1/admin/stats', 'AdminController@stats');
 $r->post('/v1/admin/migrate', 'AdminController@migrate');
+$r->get('/v1/admin/migrate', 'AdminController@migrate');
 
 $r->dispatch($method, $path);

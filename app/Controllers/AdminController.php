@@ -16,6 +16,14 @@ class AdminController extends Controller
      */
     public function migrate(array $params): void
     {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+            // Tiny form so the migration can be run from a browser without custom headers.
+            header('Content-Type: text/html; charset=utf-8');
+            echo '<!doctype html><meta charset="utf-8"><body style="font-family:system-ui;padding:32px"><h3>Run schema migration</h3>'
+               . '<form method="post"><input name="admin_token" type="password" placeholder="admin token" style="width:360px"> '
+               . '<button>Run</button></form></body>';
+            exit;
+        }
         Auth::requireAdmin();
         $sql = (string) file_get_contents(dirname(__DIR__, 2) . '/schema.sql');
         // strip full-line comments, then split on ';'
