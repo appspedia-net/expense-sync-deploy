@@ -149,6 +149,10 @@ class Auth
         }
         $given = (string) (header_value('X-App-Key') ?? '');
         if ($given === '' || !hash_equals($expected, $given)) {
+            // Admin tooling may post the admin token as a form field instead of headers.
+            if (self::adminTokenGiven()) {
+                return;
+            }
             fail('app_key_invalid', 'Missing or invalid X-App-Key', 401);
         }
     }
@@ -156,11 +160,17 @@ class Auth
     /** Enforce X-Admin-Token for admin routes. */
     public static function requireAdmin(): void
     {
-        $expected = (string) config('admin_token', '');
-        $given = (string) (header_value('X-Admin-Token') ?? '');
-        if ($expected === '' || $given === '' || !hash_equals($expected, $given)) {
+        if (!self::adminTokenGiven()) {
             fail('forbidden', 'Admin token required', 403);
         }
+    }
+
+    /** True when a valid admin token arrives via X-Admin-Token header or `admin_token` POST field. */
+    public static function adminTokenGiven(): bool
+    {
+        $expected = (string) config('admin_token', '');
+        $given = (string) (header_value('X-Admin-Token') ?? ($_POST['admin_token'] ?? ''));
+        return $expected !== '' && $given !== '' && hash_equals($expected, $given);
     }
 
     // --------------------------------------------------------------- users
