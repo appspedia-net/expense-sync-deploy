@@ -90,5 +90,6 @@ $r->get('/v1/rates', 'RatesController@index');
 $r->post('/v1/ai/receipt', 'AiController@receipt');
 $r->post('/v1/ai/ask', 'AiController@ask');
 $r->get('/v1/admin/stats', 'AdminController@stats');
+$r->post('/v1/admin/migrate', 'AdminController@migrate');
 
 $r->dispatch($method, $path);

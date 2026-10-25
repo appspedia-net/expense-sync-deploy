@@ -101,9 +101,10 @@ try {
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     $log[] = 'DB connection OK (' . $pdo->getAttribute(PDO::ATTR_SERVER_VERSION) . ')';
     $sql = file_get_contents($root . '/schema.sql');
-    $stmts = array_filter(array_map('trim', preg_split('/;\s*\n/', (string) $sql)));
+    $sql = preg_replace('/^\s*--.*$/m', '', (string) $sql);
+    $stmts = array_filter(array_map('trim', explode(';', $sql)));
     $n = 0;
-    foreach ($stmts as $s) { if ($s === '' || strpos($s, '--') === 0) continue; $pdo->exec($s); $n++; }
+    foreach ($stmts as $s) { $pdo->exec($s); $n++; }
     $log[] = "schema.sql imported ($n statements)";
     $tables = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
     $log[] = 'tables: ' . implode(', ', $tables);

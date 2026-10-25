@@ -11,6 +11,25 @@ use App\Auth;
 
 class AdminController extends Controller
 {
+    /**
+     * POST /v1/admin/migrate — (re)applies schema.sql (idempotent CREATE TABLE IF NOT EXISTS).
+     */
+    public function migrate(array $params): void
+    {
+        Auth::requireAdmin();
+        $sql = (string) file_get_contents(dirname(__DIR__, 2) . '/schema.sql');
+        // strip full-line comments, then split on ';'
+        $sql = preg_replace('/^\s*--.*$/m', '', $sql);
+        $stmts = array_filter(array_map('trim', explode(';', $sql)));
+        $n = 0; $errors = [];
+        foreach ($stmts as $st) {
+            try { $this->db->exec($st); $n++; }
+            catch (\Throwable $e) { $errors[] = substr($st, 0, 60) . ' => ' . $e->getMessage(); }
+        }
+        $tables = $this->db->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
+        json(['applied' => $n, 'errors' => $errors, 'tables' => $tables]);
+    }
+
     public function stats(array $params): void
     {
         Auth::requireAdmin();
