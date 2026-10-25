@@ -27,7 +27,7 @@ class AdminController extends Controller
         Auth::requireAdmin();
         $sql = (string) file_get_contents(dirname(__DIR__, 2) . '/schema.sql');
         // strip full-line comments, then split on ';'
-        $sql = preg_replace('/^\s*--.*$/m', '', $sql);
+        $sql = preg_replace('/(^|\s)--.*$/m', '', $sql);
         $stmts = array_filter(array_map('trim', explode(';', $sql)));
         $n = 0; $errors = [];
         foreach ($stmts as $st) {

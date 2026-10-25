@@ -275,7 +275,7 @@ CREATE TABLE IF NOT EXISTS activity (
 -- Caches / limits
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS fx_rates (
-  base       CHAR(3)  NOT NULL,                      -- only 'USD' is stored; other bases are derived
+  base       CHAR(3)  NOT NULL,                      -- only USD is stored, other bases are derived
   rates      LONGTEXT NOT NULL,                      -- JSON {"EUR":0.92,...}
   fetched_at DATETIME NOT NULL,
   PRIMARY KEY (base)
