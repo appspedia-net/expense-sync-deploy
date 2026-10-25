@@ -1,0 +1,41 @@
+# Expense Manager v3 sync API — Apache rules (20i shared hosting)
+
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+# Pass the Authorization header through to PHP (lost by default on some CGI/FPM setups)
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Never serve anything from _private (config, logs, cache) even if misplaced under public
+    RewriteRule ^_private(/|$) - [F,L]
+    RewriteRule (^|/)\.(?!well-known) - [F,L]
+
+    # Authorization header fallback for FastCGI
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Everything that is not an existing file goes to the front controller
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "no-referrer"
+</IfModule>
+
+# Block direct access to anything but index.php
+<FilesMatch "\.(sql|md|log|json|p8|ini|sh|example|lock)$">
+    Require all denied
+</FilesMatch>
+<Files "SETUP_TOKEN">
+    Require all denied
+</Files>
+
+# PHP limits live in public/.user.ini (FastCGI) — php_value here would 500 on 20i.

@@ -1,0 +1,6 @@
+_private/config.php
+_private/*.p8
+_private/logs/*
+!_private/logs/.gitkeep
+_private/cache/*
+!_private/cache/.gitkeep
