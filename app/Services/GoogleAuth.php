@@ -20,6 +20,11 @@ class GoogleAuth
      */
     public static function verifyIdToken(string $idToken): array
     {
+        // Google sign-in is off until client ids are configured — never accept tokens minted for other apps.
+        $allowed = (array) config('google_client_ids', []);
+        if (!$allowed) {
+            throw new RuntimeException('Google sign-in is not enabled');
+        }
         if ($idToken === '' || strlen($idToken) > 4096) {
             throw new RuntimeException('Malformed id_token');
         }
@@ -32,8 +37,7 @@ class GoogleAuth
         if (!in_array($info['iss'] ?? '', ['accounts.google.com', 'https://accounts.google.com'], true)) {
             throw new RuntimeException('Google token issuer mismatch');
         }
-        $allowed = (array) config('google_client_ids', []);
-        if ($allowed && !in_array($info['aud'] ?? '', $allowed, true)) {
+        if (!in_array($info['aud'] ?? '', $allowed, true)) {
             throw new RuntimeException('Google token audience mismatch');
         }
         if ((int) ($info['exp'] ?? 0) < time() - 60) {
