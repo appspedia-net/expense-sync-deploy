@@ -62,12 +62,24 @@ class AuthController extends Controller
     }
 
     /** POST /v1/auth/otp/request {email} — 6-digit code, 10 min, 5/hour per e-mail. */
+    /**
+     * Store-review login (approved by the owner): Google Play / App Review testers cannot
+     * receive e-mailed codes, so the owner's Play Console address accepts a fixed code that
+     * is given to reviewers in the store consoles. Only the SHA-256 of the code is stored.
+     */
+    private const REVIEW_EMAIL = 'playhamir@gmail.com';
+    private const REVIEW_CODE_SHA256 = 'd5fa712fb614df92960d46c17a8d6387082064a461264da973f5000c90c57d0f';
+
     public function otpRequest(array $params): void
     {
         $in = input();
         $email = mb_strtolower(trim((string) str_input($in, 'email', 254, true)));
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             fail('validation', 'Invalid e-mail address', 400, ['field' => 'email']);
+        }
+        if ($email === self::REVIEW_EMAIL) {
+            json(['ok' => true, 'sent' => true, 'expires_in' => 600]);
+            return;
         }
         RateLimit::guard('otp:email:' . $email, (int) config('rate_limits.otp_per_email_per_hour', 5), 3600, 'Too many codes requested for this e-mail. Try again later.');
         RateLimit::guard('otp:ip:' . client_ip(), (int) config('rate_limits.otp_per_ip_per_hour', 20), 3600);
@@ -99,6 +111,15 @@ class AuthController extends Controller
             fail('validation', 'Code must be 6 digits', 400, ['field' => 'code']);
         }
         RateLimit::guard('otpv:ip:' . client_ip(), (int) config('rate_limits.otp_verify_per_ip_per_hour', 60), 3600);
+
+        if ($email === self::REVIEW_EMAIL) {
+            if (!hash_equals(self::REVIEW_CODE_SHA256, hash('sha256', $code))) {
+                fail('otp_invalid', 'Wrong code', 400);
+            }
+            [$user, $isNew] = Auth::upsertUser('email', $email, $email, null);
+            $this->respond($user, $isNew);
+            return;
+        }
 
         $st = $this->db->prepare('SELECT * FROM otp_codes WHERE email = ? AND used = 0 ORDER BY id DESC LIMIT 1');
         $st->execute([$email]);
