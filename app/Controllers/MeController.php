@@ -106,12 +106,15 @@ class MeController extends Controller
      * Anonymises the user, drops devices/invites, removes memberships; spaces the
      * user owned are handed to the longest-standing remaining member or deleted
      * when empty. Shared transactions stay (attributed to "Deleted user").
+     * The email address is kept in deleted_accounts (owner's decision; disclosed in
+     * the privacy policy and on /delete-account.html).
      */
     public function destroy(array $params): void
     {
         $u = auth();
         $uid = $u['id'];
         $pdo = $this->db;
+        self::ensureDeletedAccountsTable($pdo);   // DDL commits implicitly, so before the transaction
         $pdo->beginTransaction();
         try {
             $st = $pdo->prepare('SELECT s.* FROM spaces s JOIN space_members m ON m.space_id = s.id WHERE m.user_id = ?');
@@ -141,6 +144,10 @@ class MeController extends Controller
             if ($u['email']) {
                 $pdo->prepare('DELETE FROM otp_codes WHERE email = ?')->execute([$u['email']]);
             }
+            $signIn = !empty($u['apple_sub']) ? 'apple' : (!empty($u['google_sub']) ? 'google' : 'email');
+            $pdo->prepare('INSERT INTO deleted_accounts (user_id, email, sign_in, signed_up_at, deleted_at) VALUES (?, ?, ?, ?, ?)
+                           ON DUPLICATE KEY UPDATE email = VALUES(email), sign_in = VALUES(sign_in), deleted_at = VALUES(deleted_at)')
+                ->execute([$uid, $u['email'] ?: null, $signIn, $u['created_at'] ?? null, now()]);
             $pdo->prepare('UPDATE users SET email = NULL, apple_sub = NULL, google_sub = NULL, name = ?, avatar_color = ?, status = ?, token_valid_after = ?, updated_at = ? WHERE id = ?')
                 ->execute(['Deleted user', '#9E9E9E', 'deleted', now(), now(), $uid]);
             $pdo->commit();
@@ -150,6 +157,26 @@ class MeController extends Controller
         }
         log_msg('auth', 'account deleted ' . $uid);
         json(['ok' => true, 'deleted' => true]);
+    }
+
+    /** Retained emails of deleted accounts (one row per deleted user). */
+    public static function ensureDeletedAccountsTable(\PDO $db): void
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $db->exec("CREATE TABLE IF NOT EXISTS deleted_accounts (
+            user_id      CHAR(36)     NOT NULL,
+            email        VARCHAR(255) NULL,
+            sign_in      VARCHAR(16)  NULL,
+            signed_up_at DATETIME     NULL,
+            deleted_at   DATETIME     NOT NULL,
+            PRIMARY KEY (user_id),
+            KEY ix_deleted_email (email),
+            KEY ix_deleted_at (deleted_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        $done = true;
     }
 
     /** Hard-delete a space and all its rows. */

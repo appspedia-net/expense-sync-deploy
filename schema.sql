@@ -36,6 +36,18 @@ CREATE TABLE IF NOT EXISTS users (
   KEY ix_users_last_login (last_login_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Email addresses kept after account deletion (disclosed in privacy.html / delete-account.html).
+CREATE TABLE IF NOT EXISTS deleted_accounts (
+  user_id      CHAR(36)     NOT NULL,
+  email        VARCHAR(255) NULL,
+  sign_in      VARCHAR(16)  NULL,
+  signed_up_at DATETIME     NULL,
+  deleted_at   DATETIME     NOT NULL,
+  PRIMARY KEY (user_id),
+  KEY ix_deleted_email (email),
+  KEY ix_deleted_at (deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS devices (
   id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id     CHAR(36)      NOT NULL,

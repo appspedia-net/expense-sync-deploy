@@ -440,14 +440,15 @@ class Panel
         $where = '1=1';
         $args = [];
         if ($q !== '') {
-            $where = '(u.email LIKE ? OR u.name LIKE ? OR u.id = ?)';
+            $where = '(COALESCE(u.email, da.email) LIKE ? OR u.name LIKE ? OR u.id = ?)';
             $args = ["%$q%", "%$q%", $q];
         }
-        $total = $this->count("SELECT COUNT(*) FROM users u WHERE $where", $args);
-        $st = $this->db->prepare("SELECT u.*,
+        \App\Controllers\MeController::ensureDeletedAccountsTable($this->db);
+        $total = $this->count("SELECT COUNT(*) FROM users u LEFT JOIN deleted_accounts da ON da.user_id = u.id WHERE $where", $args);
+        $st = $this->db->prepare("SELECT u.*, COALESCE(u.email, da.email) AS email,
               (SELECT COUNT(*) FROM devices d WHERE d.user_id = u.id) devs,
               (SELECT COUNT(*) FROM space_members m WHERE m.user_id = u.id) sps
-            FROM users u WHERE $where ORDER BY u.created_at DESC LIMIT 50 OFFSET " . (($pg - 1) * 50));
+            FROM users u LEFT JOIN deleted_accounts da ON da.user_id = u.id WHERE $where ORDER BY u.created_at DESC LIMIT 50 OFFSET " . (($pg - 1) * 50));
         $st->execute($args);
         $rows = '';
         foreach ($st->fetchAll() as $u) {
@@ -478,7 +479,9 @@ class Panel
         header('Content-Disposition: attachment; filename="users-' . date('Y-m-d') . '.csv"');
         $out = fopen('php://output', 'w');
         fputcsv($out, ['id', 'email', 'name', 'sign_in', 'status', 'signed_up', 'last_seen', 'currency']);
-        foreach ($this->db->query('SELECT * FROM users ORDER BY created_at DESC') as $u) {
+        \App\Controllers\MeController::ensureDeletedAccountsTable($this->db);
+        foreach ($this->db->query('SELECT u.*, COALESCE(u.email, da.email) AS email FROM users u
+                                   LEFT JOIN deleted_accounts da ON da.user_id = u.id ORDER BY u.created_at DESC') as $u) {
             fputcsv($out, [$u['id'], $u['email'], $u['name'], strip_tags($this->method($u)), $u['status'],
                 $this->local($u['created_at'], 'Y-m-d H:i'), $this->local($u['last_login_at'], 'Y-m-d H:i'), $u['currency']]);
         }
