@@ -33,6 +33,24 @@ if (strpos($path, '/index.php') === 0) {
 }
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+// --- Owner dashboard (/admin-tech, never /admin) and Apple's server notifications.
+//     Both live outside the app-key guard: browsers / Apple don't send X-App-Key.
+if ($path === \App\Admin\Panel::BASE || strpos($path, \App\Admin\Panel::BASE . '/') === 0) {
+    (new \App\Admin\Panel($path))->run();
+    exit;
+}
+if ($path === '/v1/apple/notifications') {
+    if ($method !== 'POST') {
+        fail('method_not_allowed', 'POST only', 405);
+    }
+    RateLimit::guard('apple-notify:' . client_ip(), 600, 60);
+    $status = \App\Services\AppleNotifications::receive(db(), (string) file_get_contents('php://input'));
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo $status === 200 ? '{"ok":true}' : '{"ok":false}';
+    exit;
+}
+
 // --- Global guards ---------------------------------------------------------
 $isHealth = ($path === '/v1/health' || $path === '/' || $path === '' || ($path === '/v1/admin/migrate' && $method === 'GET'));
 if (!$isHealth) {

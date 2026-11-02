@@ -300,3 +300,58 @@ CREATE TABLE IF NOT EXISTS ai_usage (
   UNIQUE KEY uq_ai_usage (user_id, day, kind),
   KEY ix_ai_day (day)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Owner dashboard (/admin-tech) + App Store Server Notifications (all apps).
+-- Also created automatically by App\Services\AppleNotifications::ensureTables().
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS store_apps (
+  bundle_id    VARCHAR(191) NOT NULL,
+  app_apple_id BIGINT UNSIGNED NULL,
+  name         VARCHAR(120) NULL,
+  first_seen   DATETIME     NOT NULL,
+  last_seen    DATETIME     NOT NULL,
+  PRIMARY KEY (bundle_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS store_events (
+  id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  notification_uuid       VARCHAR(64)  NOT NULL,
+  notification_type       VARCHAR(48)  NOT NULL,
+  subtype                 VARCHAR(48)  NULL,
+  environment             VARCHAR(16)  NULL,
+  bundle_id               VARCHAR(191) NULL,
+  app_apple_id            BIGINT UNSIGNED NULL,
+  product_id              VARCHAR(191) NULL,
+  product_type            VARCHAR(48)  NULL,
+  transaction_id          VARCHAR(64)  NULL,
+  original_transaction_id VARCHAR(64)  NULL,
+  app_account_token       VARCHAR(64)  NULL,
+  storefront              VARCHAR(8)   NULL,
+  currency                VARCHAR(8)   NULL,
+  price_milli             BIGINT       NULL,
+  offer_type              TINYINT      NULL,
+  transaction_reason      VARCHAR(16)  NULL,
+  purchase_date           DATETIME     NULL,
+  expires_date            DATETIME     NULL,
+  signed_date             DATETIME     NULL,
+  verified                TINYINT(1)   NOT NULL DEFAULT 0,
+  raw                     LONGTEXT     NULL,
+  created_at              DATETIME     NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_store_uuid (notification_uuid),
+  KEY ix_store_created (created_at),
+  KEY ix_store_app (bundle_id, created_at),
+  KEY ix_store_otx (original_transaction_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  username      VARCHAR(64)  NOT NULL,
+  pass_hash     VARCHAR(255) NOT NULL,
+  created_at    DATETIME     NOT NULL,
+  last_login_at DATETIME     NULL,
+  last_login_ip VARCHAR(45)  NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_admin_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
